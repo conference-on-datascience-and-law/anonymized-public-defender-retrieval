@@ -9,27 +9,34 @@ This repo contains
 - anonymized version of the dataset (anonymized with gemma4-31B)
 - minimal reproduction code
 
-```python
-from datasets import load_dataset
-#TODO
-```
-
 To run evaluation with [SentenceTransformers](https://sbert.net/)
 
+## Set up the data
+```
+unzip corpus_1.zip && unzip corpus_2.zip
+cat corpus_1.jsonl corpus_2.jsonl > corpus.jsonl
+rm corpus_1.zip corpus_2.zip corpus_1.jsonl corpus_2.jsonl   
+```
+
+## Quick start
 ```
 from sentence_transformers.evaluation import InformationRetrievalEvaluator
 from sentence_transformers import SentenceTransformer
-
+import json
+import pandas as pd
 from collections import defaultdict
 
-queries = {i:j for i,j in zip(test["query_idx"], test["query"])}
-corpus = {int(i):j for i,j in zip(corpus["id"], corpus["contents"])}    
+test = pd.read_csv("data/queries_and_targets.csv")
+corpus_rows = [json.loads(line) for line in open("data/corpus.jsonl")]
+
+queries = {row["query_idx"]: row["query"] for _, row in test.iterrows()}
+corpus = {int(r["id"]): r["contents"] for r in corpus_rows}
 
 relevant_docs = defaultdict(set)
-for example in test:
-  relevant_docs[example["query_idx"]].add(example["gold_idx"])
+for _, row in test.iterrows():
+    relevant_docs[row["query_idx"]].add(row["gold_idx"])
 
-model = SentenceTransformer("intfloat/e5-base-v2")        
+model = SentenceTransformer("intfloat/e5-base-v2")  
 
 ir_evaluator = InformationRetrievalEvaluator(
 queries=queries,
@@ -37,6 +44,7 @@ corpus=corpus,
 relevant_docs=relevant_docs) 
 
 results = ir_evaluator(model)
+print (results['cosine_recall@5'])
 ```
 
 To reproduce retrieval experiments, install [SentenceTransformers](https://sbert.net/)
@@ -53,5 +61,3 @@ python src/retrieval_experiments.py --do_training no --model_name intfloat/e5-ba
 python src/retrieval_experiments.py --do_training yes --model_name intfloat/e5-base-v2 --dataset barexam_qa
 # Metrics are stored in folder retrieval-results
 ```
-
-
